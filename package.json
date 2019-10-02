@@ -1,0 +1,10 @@
+{
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "commander": "^3.0.2",
+    "handlebars": "^4.3.3"
+  }
+}

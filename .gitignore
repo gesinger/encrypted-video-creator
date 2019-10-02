@@ -1,0 +1,5 @@
+package-lock.json
+*.swp
+out
+*.mp4
+node_modules
