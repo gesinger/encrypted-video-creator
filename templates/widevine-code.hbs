@@ -1,0 +1,91 @@
+(() => {
+const host = `https://127.0.0.1:8081`;
+const masterUrl = `${host}/{{ manifestName }}`;
+
+/*
+const keys = [
+{{#each keys}}
+  {
+    keyId: {{{ jsifyHexStringAsUint8Array this.keyId }}},
+    key: {{{ jsifyHexStringAsUint8Array this.key }}},
+    pssh: {{{ jsifyHexStringAsUint8Array this.pssh }}}
+  },
+{{/each}}
+];
+
+// modified from
+// https://github.com/videojs/vhs-utils/blob/master/src/decode-b64-to-uint8-array.js
+const decodeB64ToUint8Array = (b64Text) => {
+  // replace base64 variant characters used by shaka packager (avoids errors with atob)
+  const safeText = b64Text
+    .replace(/_/g,'/')
+    .replace(/-/g,'+');
+  const decodedString = atob(safeText);
+  const array = new Uint8Array(decodedString.length);
+
+  for (let i = 0; i < decodedString.length; i++) {
+    array[i] = decodedString.charCodeAt(i);
+  }
+
+  return array;
+};
+
+// Convert Uint8Array into base64 using base64url alphabet, without padding.
+const toBase64 = (u8arr) => {
+  return btoa(String.fromCharCode.apply(null, u8arr)).
+    replace(/\+/g, '-').replace(/\//g, '_').replace(/=*$/, '');
+};
+
+const getLicense = (emeOptions, keyMessage, callback) => {
+  const keyObjects = [];
+  const keyIds = JSON.parse(new TextDecoder().decode(keyMessage)).kids;
+
+  for (let i = 0; i < keyIds.length; i++) {
+    const keyId = decodeB64ToUint8Array(keyIds[i]);
+
+    for (let j = 0; j < keys.length; j++) {
+      const keyDetails = keys[j];
+
+      // not a proper equality check, but useful for this example
+      if (keyId.toString() === keyDetails.keyId.toString()) {
+        keyObjects.push({
+          kty: 'oct',
+          alg: 'A128KW',
+          kid: keyIds[i],
+          k: toBase64(keyDetails.key)
+        });
+      }
+    }
+  }
+
+  callback(null, new TextEncoder().encode(JSON.stringify({ keys: keyObjects })));
+};
+*/
+
+player.src({
+  src: masterUrl,
+  type: 'application/x-mpegURL',
+  keySystems: {
+    'com.widevine.alpha': {
+      audioContentType: "audio/mp4; codecs=\"mp4a.40.2\"",
+      videoContentType: "video/mp4; codecs=\"avc1.64001E\"",
+      url: '{{{ licenseUrl }}}'
+    }
+  }
+});
+
+/*
+keys.forEach((key) => {
+  player.eme.initializeMediaKeys({
+    keySystems: {
+      'org.w3.clearkey': {
+        audioContentType: "audio/mp4; codecs=\"mp4a.40.2\"",
+        videoContentType: "video/mp4; codecs=\"avc1.64001E\"",
+        pssh: key.pssh,
+        getLicense
+      }
+    }
+  });
+});
+*/
+})();

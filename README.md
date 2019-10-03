@@ -22,12 +22,20 @@ To see the options, run:
 $ npm run start -- -h
 ```
 
-A sample command using all the defaults just takes in a source file:
+A sample command using all the defaults (generates a clear key encrypted source):
 
 ```
 $ npm run start -- --source video.mp4
 ```
 
+Sample command using Widevine defaults (generates a test Widevine encrypted source using the [test credentials provided by shaka packager]):
+
+```
+$ npm run start -- --source im.mp4 --key-system widevine
+```
+
 ## Note
 
 Many of the options have not been tested, but should provide a good foundation for future enhancements/fixes.
+
+[test credentials provided by shaka packager]: https://google.github.io/shaka-packager/html/tutorials/widevine.html#widevine-test-credential

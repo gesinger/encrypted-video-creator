@@ -1,0 +1,26 @@
+## Info
+
+License URL: {{{ licenseUrl }}}
+
+## Use in the player
+
+To configure [videojs-contrib-eme] you can follow the docs on the [videojs-contrib-eme README], but a sample is included in `sample-code.js` for [Clear Key] encrypted content created by the script. Much of the logic is borrowed from the [videojs-contrib-eme example].
+
+
+## Serving locally
+
+To serve the files for testing, some browsers (e.g., Chrome) require a secure environment for the EME APIs. This means that you must serve the page and content over HTTPS.
+
+An easy setup for an insecure HTTPS environment may be done as follows:
+
+```bash
+# (set Common Name to localhost when prompted)
+$ openssl req -nodes -new -x509 -keyout server.key -out server.cert
+$ npm install -g http-server
+$ http-server --cors --ssl --key server.key --cert server.cert
+```
+
+[videojs-contrib-eme]: https://github.com/videojs/videojs-contrib-eme
+[videojs-contrib-eme README]: https://github.com/videojs/videojs-contrib-eme/blob/master/README.md
+[videojs-contrib-eme example]: https://github.com/videojs/videojs-contrib-eme/blob/master/index.html
+[Clear Key]: https://www.w3.org/TR/encrypted-media/#clear-key
