@@ -38,21 +38,44 @@ const pssh = async ({ psshBoxPath, keyIds, outputType = 'hex' }) => {
   return stdout.trim();
 };
 
+const getStreamsArg = ({ manifestType, sourcePath, outputDir }) => {
+  const inAudio = `in=${sourcePath}`;
+  const inVideo = `in=${sourcePath}`;
+
+  if (manifestType === 'dash') {
+    const initAudio = `init_segment=${outputDir}/audio/init.mp4`;
+    const initVideo = `init_segment=${outputDir}/video/init.mp4`;
+    // Using segment template changes the manifest from the standard segment base with
+    // SIDX to segment template, and uses a dynamic manifest type (as it is assumed to be
+    // live). Since it's easier to debug segment templates, use that, and the manifest
+    // type will later be changed to static.
+    const templateAudio = `segment_template=${outputDir}/audio/$Number$.m4s`;
+    const templateVideo = `segment_template=${outputDir}/video/$Number$.m4s`;
+
+    return `'${inAudio},stream=audio,${initAudio},${templateAudio},drm_label=AUDIO' \
+      '${inVideo},stream=video,${initVideo},${templateVideo},drm_label=SD'`;
+  }
+
+  return `'${inAudio},stream=audio,output=${outputDir}/audio-out.mp4,drm_label=AUDIO' \
+    '${inVideo},stream=video,output=${outputDir}/video-out.mp4,drm_label=SD'`;
+};
+
 const shakaPackagerWidevine = async ({
   shakaPackagerPath,
   sourcePath,
   outputDir,
   manifestName,
-  manifestType
+  manifestType,
+  segmentDuration
 }) => {
   const manifestTypeArg = manifestType === 'dash' ?
     '--mpd_output' :
     '--hls_master_playlist_output';
   const command = `${shakaPackagerPath} \
-    in=${sourcePath},stream=audio,output=${outputDir}/audio-out.mp4,drm_label=AUDIO \
-    in=${sourcePath},stream=video,output=${outputDir}/video-out.mp4,drm_label=SD \
+    ${getStreamsArg({ manifestType, sourcePath, outputDir })} \
     --enable_widevine_encryption \
     --key_server_url ${WIDEVINE_TEST_KEY_SERVER_URL} \
+    --segment_duration ${segmentDuration} \
     --content_id ${hexString(32)} \
     --signer ${WIDEVINE_TEST_SIGNER} \
     --aes_signing_key ${WIDEVINE_TEST_AES_SIGNING_KEY} \
@@ -73,6 +96,7 @@ const shakaPackagerClearkey = async ({
   outputDir,
   manifestName,
   manifestType,
+  segmentDuration,
   psshHex,
   keyIdAudio,
   keyIdVideo,
@@ -86,6 +110,7 @@ const shakaPackagerClearkey = async ({
     in=${sourcePath},stream=audio,output=${outputDir}/audio-out.mp4,drm_label=AUDIO \
     in=${sourcePath},stream=video,output=${outputDir}/video-out.mp4,drm_label=SD \
     --enable_raw_key_encryption \
+    --segment_duration ${segmentDuration} \
     --keys label=AUDIO:key_id=${keyIdAudio}:key=${keyAudio},label=SD:key_id=${keyIdVideo}:key=${keyVideo} \
     --pssh ${psshHex} \
     ${manifestTypeArg} ${outputDir}/${manifestName}
@@ -133,6 +158,17 @@ const cleanHlsManifests = ({ outputDir, masterName }) => {
   removeExtXKey({ playlistPath: videoPlaylistPath });
 };
 
+const cleanDashManifest = ({ outputDir, masterName }) => {
+  const masterPath = `${outputDir}/${masterName}`;
+
+  // live to VOD
+  replaceFromFile({
+    path: masterPath,
+    find: 'type=\'dynamic\'',
+    replace: 'type=\'static\''
+  });
+};
+
 const writeOutputFiles = ({
   readmeTemplatePath,
   codeTemplatePath,
@@ -160,6 +196,7 @@ const writeOutputFiles = ({
 const generateManifest = async ({
   outputDir,
   manifestType,
+  segmentDuration,
   psshBoxPath,
   shakaPackagerPath,
   sourcePath,
@@ -182,6 +219,7 @@ const generateManifest = async ({
       outputDir,
       manifestName,
       manifestType,
+      segmentDuration,
       psshHex,
       keyIdAudio,
       keyIdVideo,
@@ -211,13 +249,18 @@ const generateManifest = async ({
       sourcePath,
       outputDir,
       manifestName,
-      manifestType
+      manifestType,
+      segmentDuration
     });
     readmeVars.licenseUrl = WIDEVINE_TEST_LICENSE_PROXY;
     codeVars.licenseUrl = WIDEVINE_TEST_LICENSE_PROXY;
   }
 
-  cleanHlsManifests({ outputDir, masterName: manifestName });
+  if (manifestType === 'hls') {
+    cleanHlsManifests({ outputDir, masterName: manifestName });
+  } else if (manifestType === 'dash') {
+    cleanDashManifest({ outputDir, masterName: manifestName });
+  }
 
   const readmeTemplatePath = keySystem === 'clearkey' ?
     CLEARKEY_README_TEMPLATE_PATH : WIDEVINE_README_TEMPLATE_PATH;

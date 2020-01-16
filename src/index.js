@@ -13,6 +13,7 @@ program
   .option('--source <path>', 'source file')
   .option('--destination <path>', 'destination directory to put assets', 'out')
   .option('--manifest-type <type>', '"hls" or "dash"', 'hls')
+  .option('--segment-duration <duration>', 'segment duration to use', 6)
   .option('--pssh-box-path <path>', 'path to pssh-box.py', PSSH_BOX_PATH)
   .option('--shaka-packager-path <path>', 'path to shaka\'s packager', SHAKA_PACKAGER_PATH)
   .option('--key-system <system>', '"clearkey" and "widevine" are supported', 'clearkey')
@@ -33,6 +34,7 @@ const outputDir = program.destination;
 generateManifest({
   outputDir,
   manifestType: program.manifestType,
+  segmentDuration: program.segmentDuration,
   psshBoxPath: program.psshBoxPath,
   shakaPackagerPath: program.shakaPackagerPath,
   sourcePath: program.source,
