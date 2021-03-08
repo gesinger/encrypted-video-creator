@@ -38,9 +38,17 @@ const pssh = async ({ psshBoxPath, keyIds, outputType = 'hex' }) => {
   return stdout.trim();
 };
 
-const getStreamsArg = ({ manifestType, sourcePath, outputDir }) => {
+const getStreamsArg = ({
+  manifestType,
+  sourcePath,
+  outputDir,
+  hasAudio,
+  hasVideo
+}) => {
   const inAudio = `in=${sourcePath}`;
   const inVideo = `in=${sourcePath}`;
+  let audioArgs;
+  let videoArgs;
 
   if (manifestType === 'dash') {
     const initAudio = `init_segment=${outputDir}/audio/init.mp4`;
@@ -52,12 +60,22 @@ const getStreamsArg = ({ manifestType, sourcePath, outputDir }) => {
     const templateAudio = `segment_template=${outputDir}/audio/$Number$.m4s`;
     const templateVideo = `segment_template=${outputDir}/video/$Number$.m4s`;
 
-    return `'${inAudio},stream=audio,${initAudio},${templateAudio},drm_label=AUDIO' \
-      '${inVideo},stream=video,${initVideo},${templateVideo},drm_label=SD'`;
+    audioArgs = hasAudio ?
+      `'${inAudio},stream=audio,${initAudio},${templateAudio},drm_label=AUDIO'` :
+      '';
+    videoArgs = hasVideo ?
+      `'${inVideo},stream=video,${initVideo},${templateVideo},drm_label=SD'` :
+      '';
+  } else {
+    audioArgs = hasAudio ?
+      `'${inAudio},stream=audio,output=${outputDir}/audio-out.mp4,drm_label=AUDIO'` :
+      '';
+    videoArgs = hasVideo ?
+      `'${inVideo},stream=video,output=${outputDir}/video-out.mp4,drm_label=SD'` :
+      '';
   }
 
-  return `'${inAudio},stream=audio,output=${outputDir}/audio-out.mp4,drm_label=AUDIO' \
-    '${inVideo},stream=video,output=${outputDir}/video-out.mp4,drm_label=SD'`;
+  return `${audioArgs} \ ${videoArgs}`;
 };
 
 const shakaPackagerWidevine = async ({
@@ -66,13 +84,15 @@ const shakaPackagerWidevine = async ({
   outputDir,
   manifestName,
   manifestType,
-  segmentDuration
+  segmentDuration,
+  hasAudio,
+  hasVideo
 }) => {
   const manifestTypeArg = manifestType === 'dash' ?
     '--mpd_output' :
     '--hls_master_playlist_output';
   const command = `${shakaPackagerPath} \
-    ${getStreamsArg({ manifestType, sourcePath, outputDir })} \
+    ${getStreamsArg({ manifestType, sourcePath, outputDir, hasAudio, hasVideo })} \
     --enable_widevine_encryption \
     --key_server_url ${WIDEVINE_TEST_KEY_SERVER_URL} \
     --segment_duration ${segmentDuration} \
@@ -101,18 +121,24 @@ const shakaPackagerClearkey = async ({
   keyIdAudio,
   keyIdVideo,
   keyAudio,
-  keyVideo
+  keyVideo,
+  hasAudio,
+  hasVideo
 }) => {
   const manifestTypeArg = manifestType === 'dash' ?
     '--mpd_output' :
     '--hls_master_playlist_output';
-  const command = `${shakaPackagerPath} \
-    in=${sourcePath},stream=audio,output=${outputDir}/audio-out.mp4,drm_label=AUDIO \
-    in=${sourcePath},stream=video,output=${outputDir}/video-out.mp4,drm_label=SD \
-    --enable_raw_key_encryption \
+  const command = `${shakaPackagerPath} \ ` +
+    (hasAudio ? `in=${sourcePath},stream=audio,output=${outputDir}/audio-out.mp4,drm_label=AUDIO \ ` : '') +
+    (hasVideo ? `in=${sourcePath},stream=video,output=${outputDir}/video-out.mp4,drm_label=SD \ ` : '') +
+    `--enable_raw_key_encryption \
     --segment_duration ${segmentDuration} \
-    --keys label=AUDIO:key_id=${keyIdAudio}:key=${keyAudio},label=SD:key_id=${keyIdVideo}:key=${keyVideo} \
-    --pssh ${psshHex} \
+    --keys ` +
+    (hasAudio ? `label=AUDIO:key_id=${keyIdAudio}:key=${keyAudio}` : '') +
+    (hasAudio && hasVideo ? ',' : '') +
+    (hasVideo ? `label=SD:key_id=${keyIdVideo}:key=${keyVideo}` : '') +
+    '\ ' +
+    `--pssh ${psshHex} \
     ${manifestTypeArg} ${outputDir}/${manifestName}
   `;
   const { error, stdout, stderr } = await exec(command);
@@ -123,10 +149,19 @@ const shakaPackagerClearkey = async ({
 };
 
 const replaceFromFile = ({ path, find, replace }) => {
-  const file = fs.readFileSync(path, 'utf-8');
-  const newFile = file.replace(find, replace);
+  try {
+    const file = fs.readFileSync(path, 'utf-8');
+    const newFile = file.replace(find, replace);
 
-  fs.writeFileSync(path, newFile, 'utf-8');
+    fs.writeFileSync(path, newFile, 'utf-8');
+  } catch (e) {
+    if (e.code === 'ENOENT') {
+      // no file, can skip, might happen if audio or video only
+      return;
+    }
+
+    throw e;
+  }
 };
 
 const cleanHlsMaster = ({ masterPath }) => {
@@ -204,7 +239,9 @@ const generateManifest = async ({
   keyIdAudio,
   keyIdVideo,
   keyAudio,
-  keyVideo
+  keyVideo,
+  hasAudio,
+  hasVideo
 }) => {
   const manifestName = manifestType === 'dash' ? 'manifest.mpd' : 'master.m3u8';
   const codeVars = { manifestName };
@@ -224,7 +261,9 @@ const generateManifest = async ({
       keyIdAudio,
       keyIdVideo,
       keyAudio,
-      keyVideo
+      keyVideo,
+      hasAudio,
+      hasVideo
     });
 
     const audioPsshHex = await pssh({ psshBoxPath, keyIds: [keyIdAudio] });
@@ -250,7 +289,9 @@ const generateManifest = async ({
       outputDir,
       manifestName,
       manifestType,
-      segmentDuration
+      segmentDuration,
+      hasAudio,
+      hasVideo
     });
     readmeVars.licenseUrl = WIDEVINE_TEST_LICENSE_PROXY;
     codeVars.licenseUrl = WIDEVINE_TEST_LICENSE_PROXY;

@@ -21,7 +21,9 @@ program
   .option('--key-id-video <hex>', 'custom video 32 char hex string key ID (defaults to random)')
   .option('--key-audio <hex>', 'custom audio 128 bit key in hex (defaults to random)')
   .option('--key-video <hex>', 'custom video 128 bit key (defaults to random)')
-  .option('--same-key', 'use same key for audio and video (defaults to true, uses video as primary)', true);
+  .option('--same-key', 'use same key for audio and video (defaults to true, uses video as primary)', true)
+  .option('--audio-only', 'output audio only (defaults to false)', false)
+  .option('--video-only', 'output video only (defaults to false)', false);
 
 program.parse(process.argv);
 
@@ -42,7 +44,9 @@ generateManifest({
   keyIdAudio,
   keyIdVideo,
   keyAudio,
-  keyVideo
+  keyVideo,
+  hasAudio: !program.videoOnly,
+  hasVideo: !program.audioOnly,
 }).then(() => {
   console.log(`Done, please check '${outputDir}/' for README and generated files`);
 });
